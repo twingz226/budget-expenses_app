@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'models/expense.dart';
 import 'models/budget.dart';
@@ -10,20 +11,43 @@ import 'screens/home_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Hive
-  await Hive.initFlutter();
+  try {
+    // Initialize Hive
+    await Hive.initFlutter();
 
-  // Register adapters
-  Hive.registerAdapter(ExpenseAdapter());
-  Hive.registerAdapter(BudgetAdapter());
-  Hive.registerAdapter(CustomCategoryAdapter());
+    // Register adapters safely
+    if (!Hive.isAdapterRegistered(0)) {
+      Hive.registerAdapter(ExpenseAdapter());
+    }
+    if (!Hive.isAdapterRegistered(1)) {
+      Hive.registerAdapter(BudgetAdapter());
+    }
+    if (!Hive.isAdapterRegistered(2)) {
+      Hive.registerAdapter(CustomCategoryAdapter());
+    }
 
-  // Open boxes
-  await Hive.openBox<Expense>(AppConstants.expensesBoxName);
-  await Hive.openBox<Budget>(AppConstants.budgetsBoxName);
-  await Hive.openBox<CustomCategory>(AppConstants.customCategoriesBoxName);
+    // Open boxes
+    await Hive.openBox<Expense>(AppConstants.expensesBoxName);
+    await Hive.openBox<Budget>(AppConstants.budgetsBoxName);
+    await Hive.openBox<CustomCategory>(AppConstants.customCategoriesBoxName);
 
-  runApp(const MoneyWiseApp());
+    runApp(const MoneyWiseApp());
+  } catch (e, stackTrace) {
+    runApp(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              'Initialization Error:\n\n$e\n\n$stackTrace',
+              style: const TextStyle(color: Colors.red),
+              textDirection: TextDirection.ltr,
+            ),
+          ),
+        ),
+      ),
+    ));
+  }
 }
 
 class MoneyWiseApp extends StatefulWidget {
@@ -37,6 +61,7 @@ class _MoneyWiseAppState extends State<MoneyWiseApp> {
   ThemeMode _themeMode = ThemeMode.system;
 
   void _toggleTheme() {
+    HapticFeedback.lightImpact();
     setState(() {
       _themeMode = _themeMode == ThemeMode.light
           ? ThemeMode.dark

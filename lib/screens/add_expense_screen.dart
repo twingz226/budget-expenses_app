@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
 import '../models/expense.dart';
 import '../services/hive_service.dart';
 import '../services/category_service.dart';
@@ -22,6 +23,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   String _selectedCategory = CategoryService.getAllCategories().first;
   DateTime _selectedDate = DateTime.now();
 
+  bool _isRecurring = false;
+  String? _frequency;
+  DateTime? _nextDueDate;
+  DateTime? _endDate;
+
   @override
   void initState() {
     super.initState();
@@ -31,6 +37,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _selectedCategory = widget.expense!.category;
       _selectedDate = widget.expense!.date;
       _noteController.text = widget.expense!.note ?? '';
+      _isRecurring = widget.expense!.isRecurring;
+      _frequency = widget.expense!.frequency;
+      _nextDueDate = widget.expense!.nextDueDate;
+      _endDate = widget.expense!.endDate;
     }
   }
 
@@ -64,6 +74,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             children: [
               // Title Field
               TextFormField(
+                autofocus: true,
                 controller: _titleController,
                 decoration: const InputDecoration(
                   labelText: 'Title',
@@ -86,7 +97,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   hintText: 'Enter amount',
                   prefixText: '₱ ',
                 ),
-                keyboardType: TextInputType.number,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Please enter an amount';
@@ -100,21 +111,66 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Category Dropdown
-              DropdownButtonFormField<String>(
-                initialValue: _selectedCategory,
-                decoration: const InputDecoration(labelText: 'Category'),
-                items: CategoryService.getAllCategories().map((category) {
-                  return DropdownMenuItem(
-                    value: category,
-                    child: Text(category),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedCategory = value!;
-                  });
-                },
+              // Category Selection
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Category',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 50,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: CategoryService.getAllCategories().length,
+                      itemBuilder: (context, index) {
+                        final category =
+                            CategoryService.getAllCategories()[index];
+                        final isSelected = _selectedCategory == category;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FilterChip(
+                            label: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  CategoryService.getCategoryIcon(category),
+                                  size: 16,
+                                  color: isSelected
+                                      ? Theme.of(context).colorScheme.onPrimary
+                                      : Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(category),
+                              ],
+                            ),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              if (selected) {
+                                setState(() {
+                                  _selectedCategory = category;
+                                });
+                              }
+                            },
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
+                            selectedColor: Theme.of(
+                              context,
+                            ).colorScheme.primary,
+                            checkmarkColor: Theme.of(
+                              context,
+                            ).colorScheme.onPrimary,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
 
@@ -143,7 +199,98 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 ),
                 maxLines: 3,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+
+              // Recurring Expense Toggle
+              SwitchListTile(
+                title: const Text('Recurring Expense'),
+                subtitle: const Text('Set up automatic recurring transactions'),
+                value: _isRecurring,
+                onChanged: (value) {
+                  setState(() {
+                    _isRecurring = value;
+                    if (!value) {
+                      _frequency = null;
+                      _nextDueDate = null;
+                      _endDate = null;
+                    }
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Recurring Options
+              if (_isRecurring) ...[
+                // Frequency Dropdown
+                DropdownButtonFormField<String>(
+                  initialValue: _frequency,
+                  decoration: const InputDecoration(labelText: 'Frequency'),
+                  items: ['daily', 'weekly', 'monthly', 'yearly'].map((freq) {
+                    return DropdownMenuItem(
+                      value: freq,
+                      child: Text(freq[0].toUpperCase() + freq.substring(1)),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _frequency = value;
+                    });
+                  },
+                  validator: (value) {
+                    if (_isRecurring && value == null) {
+                      return 'Please select a frequency';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Next Due Date Picker
+                InkWell(
+                  onTap: _selectNextDueDate,
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Next Due Date',
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _nextDueDate != null
+                              ? DateFormat(
+                                  'MMMM dd, yyyy',
+                                ).format(_nextDueDate!)
+                              : 'Select date',
+                        ),
+                        const Icon(Icons.calendar_today),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // End Date Picker (Optional)
+                InkWell(
+                  onTap: _selectEndDate,
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'End Date (Optional)',
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _endDate != null
+                              ? DateFormat('MMMM dd, yyyy').format(_endDate!)
+                              : 'No end date',
+                        ),
+                        const Icon(Icons.calendar_today),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // Save Button
               ElevatedButton(
@@ -173,6 +320,34 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
   }
 
+  Future<void> _selectNextDueDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _nextDueDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+    );
+    if (picked != null) {
+      setState(() {
+        _nextDueDate = picked;
+      });
+    }
+  }
+
+  Future<void> _selectEndDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate ?? (_nextDueDate ?? DateTime.now()),
+      firstDate: _nextDueDate ?? DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+    );
+    if (picked != null) {
+      setState(() {
+        _endDate = picked;
+      });
+    }
+  }
+
   Future<void> _saveExpense() async {
     if (_formKey.currentState!.validate()) {
       final expense = Expense(
@@ -184,6 +359,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         note: _noteController.text.trim().isEmpty
             ? null
             : _noteController.text.trim(),
+        isRecurring: _isRecurring,
+        frequency: _frequency,
+        nextDueDate: _nextDueDate,
+        endDate: _endDate,
       );
 
       if (widget.expense == null) {
@@ -198,6 +377,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           await HiveService.updateExpense(index, expense);
         }
       }
+
+      HapticFeedback.lightImpact();
 
       if (mounted) {
         Navigator.pop(context);

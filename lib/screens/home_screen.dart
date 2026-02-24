@@ -116,33 +116,52 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ]
                               : null,
                         ),
-                        child: Row(
+                        child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              _tabIcons[index],
-                              size: 20,
-                              color: isSelected
-                                  ? Theme.of(context).colorScheme.onPrimary
-                                  : Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _tabIcons[index],
+                                  size: 20,
+                                  color: isSelected
+                                      ? Theme.of(context).colorScheme.onPrimary
+                                      : Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _tabTitles[index],
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.w500,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _tabTitles[index],
-                              style: TextStyle(
-                                color: isSelected
-                                    ? Theme.of(context).colorScheme.onPrimary
-                                    : Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
-                                fontSize: 14,
+                            if (isSelected) ...[
+                              const SizedBox(height: 4),
+                              Container(
+                                height: 3,
+                                width: 24,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.onPrimary
+                                      .withValues(alpha: 0.8),
+                                  borderRadius: BorderRadius.circular(1.5),
+                                ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ),

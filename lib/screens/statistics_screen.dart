@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../services/hive_service.dart';
 import '../services/category_service.dart';
+import '../services/budget_service.dart';
 import '../utils/currency_formatter.dart';
 
 class StatisticsScreen extends StatefulWidget {
@@ -14,35 +15,7 @@ class StatisticsScreen extends StatefulWidget {
 }
 
 class _StatisticsScreenState extends State<StatisticsScreen> {
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder(
-      valueListenable: HiveService.expenseBox.listenable(),
-      builder: (context, box, _) {
-        return RefreshIndicator(
-          onRefresh: _refreshData,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Current Month Total
-                _buildCurrentMonthTotal(context),
-                const SizedBox(height: 24),
-
-                // Category Distribution
-                _buildCategoryDistribution(context),
-                const SizedBox(height: 24),
-
-                // Weekly Expenses Chart
-                _buildWeeklyExpenses(context),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
+  final int _selectedPeriod = 0; // 0 for 7 days, 1 for 30 days
 
   Widget _buildCurrentMonthTotal(BuildContext context) {
     final now = DateTime.now();
@@ -78,6 +51,124 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
+  Widget _buildRemainingDailyBudget(BuildContext context) {
+    final now = DateTime.now();
+    final totalBudget = BudgetService.getTotalBudgetForMonth(now);
+    final totalSpent = BudgetService.getTotalSpentForMonth(now);
+
+    if (totalBudget == 0) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Remaining Daily Budget',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'No monthly budget set',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final remainingMonthly = totalBudget - totalSpent;
+    if (remainingMonthly <= 0) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Remaining Daily Budget',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Over budget',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Calculate remaining days in the month (from tomorrow to end of month)
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
+    final remainingDays =
+        lastDayOfMonth.difference(tomorrow).inDays +
+        1; // +1 to include tomorrow
+
+    if (remainingDays <= 0) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Remaining Daily Budget',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Month ended',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final dailyBudget = remainingMonthly / remainingDays;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Remaining Daily Budget',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              CurrencyFormatter.format(dailyBudget),
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            Text(
+              '$remainingDays days left in ${DateFormat('MMMM').format(now)}',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildCategoryDistribution(BuildContext context) {
     final now = DateTime.now();
     final categoryData = HiveService.getExpensesByCategoryForMonth(now);
@@ -94,13 +185,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       );
     }
 
-    final total = categoryData.values.fold(0.0, (sum, amount) => sum + amount);
     final pieSections = categoryData.entries.map((entry) {
-      final percentage = (entry.value / total) * 100;
       return PieChartSectionData(
         color: CategoryService.getCategoryColor(entry.key),
         value: entry.value,
-        title: '${entry.key}\n${percentage.toStringAsFixed(1)}%',
+        title: '', // Remove title to avoid overlap, use tooltips instead
         radius: 50,
         titleStyle: const TextStyle(
           fontSize: 12,
@@ -128,6 +217,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   sections: pieSections,
                   centerSpaceRadius: 40,
                   sectionsSpace: 2,
+                  pieTouchData: PieTouchData(
+                    touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                      // Touch callback for interactions
+                    },
+                    enabled: true,
+                  ),
                 ),
               ),
             ),
@@ -162,20 +257,29 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  Widget _buildWeeklyExpenses(BuildContext context) {
-    final dailyTotals = HiveService.getDailyTotalsForLastSevenDays();
+  Widget _buildExpensesChart(BuildContext context) {
+    final is30Days = _selectedPeriod == 1;
+    final dailyTotals = is30Days
+        ? HiveService.getDailyTotalsForLastThirtyDays()
+        : HiveService.getDailyTotalsForLastSevenDays();
     final now = DateTime.now();
-    final List<Map<String, dynamic>> weekData = [];
+    final days = is30Days ? 29 : 6;
+    final List<Map<String, dynamic>> data = [];
 
-    for (int i = 6; i >= 0; i--) {
+    for (int i = days; i >= 0; i--) {
       final date = DateTime(now.year, now.month, now.day - i);
       final total =
           dailyTotals[DateTime(date.year, date.month, date.day)] ?? 0.0;
-      weekData.add({'day': DateFormat('EEE').format(date), 'amount': total});
+      data.add({
+        'day': is30Days
+            ? DateFormat('MM/dd').format(date)
+            : DateFormat('EEE').format(date),
+        'amount': total,
+      });
     }
 
-    final maxAmount = weekData
-        .map((data) => data['amount'] as double)
+    final maxAmount = data
+        .map((d) => d['amount'] as double)
         .reduce((a, b) => a > b ? a : b);
 
     return Card(
@@ -184,7 +288,15 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Last 7 Days', style: Theme.of(context).textTheme.titleMedium),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  is30Days ? 'Last 30 Days' : 'Last 7 Days',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
             SizedBox(
               height: 200,
@@ -196,7 +308,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     touchTooltipData: BarTouchTooltipData(
                       getTooltipColor: (_) => Colors.black87,
                       getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        final day = weekData[group.x.toInt()]['day'] as String;
+                        final day = data[group.x.toInt()]['day'] as String;
                         final amount = rod.toY;
                         return BarTooltipItem(
                           '$day\n${CurrencyFormatter.format(amount)}',
@@ -211,11 +323,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       sideTitles: SideTitles(
                         showTitles: true,
                         getTitlesWidget: (value, meta) {
-                          if (value >= 0 && value < weekData.length) {
+                          if (value >= 0 && value < data.length) {
                             return Padding(
                               padding: const EdgeInsets.only(top: 8.0),
                               child: Text(
-                                weekData[value.toInt()]['day'] as String,
+                                data[value.toInt()]['day'] as String,
                                 style: const TextStyle(fontSize: 10),
                               ),
                             );
@@ -244,16 +356,17 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     ),
                   ),
                   borderData: FlBorderData(show: false),
-                  barGroups: weekData.asMap().entries.map((entry) {
+                  barGroups: data.asMap().entries.map((entry) {
                     return BarChartGroupData(
                       x: entry.key,
                       barRods: [
                         BarChartRodData(
                           toY: entry.value['amount'] as double,
                           color: Theme.of(context).colorScheme.primary,
-                          width: 12,
+                          width: is30Days ? 8 : 12,
                           borderRadius: const BorderRadius.vertical(
                             top: Radius.circular(4),
+                            bottom: Radius.zero,
                           ),
                         ),
                       ],
@@ -271,5 +384,40 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   Future<void> _refreshData() async {
     // Simulate refresh delay for user feedback
     await Future.delayed(const Duration(seconds: 1));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: HiveService.expenseBox.listenable(),
+      builder: (context, box, _) {
+        return RefreshIndicator(
+          onRefresh: _refreshData,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Current Month Total
+                _buildCurrentMonthTotal(context),
+                const SizedBox(height: 24),
+
+                // Remaining Daily Budget
+                _buildRemainingDailyBudget(context),
+                const SizedBox(height: 24),
+
+                // Category Distribution
+                _buildCategoryDistribution(context),
+                const SizedBox(height: 24),
+
+                // Weekly Expenses Chart
+                _buildExpensesChart(context),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }

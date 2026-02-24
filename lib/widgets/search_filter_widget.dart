@@ -23,7 +23,7 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
   final _searchController = TextEditingController();
   final _categoryFocusNode = FocusNode();
   final _sortFocusNode = FocusNode();
-  String _selectedCategory = 'All Categories';
+  List<String> _selectedCategories = ['All Categories'];
   DateTime? _startDate;
   DateTime? _endDate;
   double _minAmount = 0;
@@ -62,9 +62,10 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
     }
 
     // Apply category filter
-    if (_selectedCategory != 'All Categories') {
+    if (!_selectedCategories.contains('All Categories') &&
+        _selectedCategories.isNotEmpty) {
       filteredExpenses = filteredExpenses
-          .where((expense) => expense.category == _selectedCategory)
+          .where((expense) => _selectedCategories.contains(expense.category))
           .toList();
     }
 
@@ -162,27 +163,28 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Category filter
-          DropdownButtonFormField<String>(
-            focusNode: _categoryFocusNode,
-            initialValue: _selectedCategory,
-            decoration: const InputDecoration(
-              labelText: 'Category',
-              isDense: true,
+          InkWell(
+            onTap: () => _selectCategories(),
+            child: InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Categories',
+                isDense: true,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      _selectedCategories.contains('All Categories')
+                          ? 'All Categories'
+                          : _selectedCategories.join(', '),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Icon(Icons.arrow_drop_down),
+                ],
+              ),
             ),
-            items: ['All Categories', ...CategoryService.getAllCategories()]
-                .map((category) {
-                  return DropdownMenuItem(
-                    value: category,
-                    child: Text(category),
-                  );
-                })
-                .toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedCategory = value!;
-                _applyFilters();
-              });
-            },
           ),
           const SizedBox(height: 8),
 
@@ -326,6 +328,71 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
     }
   }
 
+  Future<void> _selectCategories() async {
+    final allCategories = [
+      'All Categories',
+      ...CategoryService.getAllCategories(),
+    ];
+    final tempSelected = List<String>.from(_selectedCategories);
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Select Categories'),
+          content: SingleChildScrollView(
+            child: Column(
+              children: allCategories.map((category) {
+                return CheckboxListTile(
+                  title: Text(category),
+                  value: tempSelected.contains(category),
+                  onChanged: (checked) {
+                    setState(() {
+                      if (category == 'All Categories') {
+                        if (checked!) {
+                          tempSelected.clear();
+                          tempSelected.add('All Categories');
+                        } else {
+                          tempSelected.remove('All Categories');
+                        }
+                      } else {
+                        if (checked!) {
+                          tempSelected.add(category);
+                          tempSelected.remove('All Categories');
+                        } else {
+                          tempSelected.remove(category);
+                          if (tempSelected.isEmpty) {
+                            tempSelected.add('All Categories');
+                          }
+                        }
+                      }
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                this.setState(() {
+                  _selectedCategories = tempSelected;
+                  _applyFilters();
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _selectEndDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -342,7 +409,8 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
   }
 
   bool _hasActiveFilters() {
-    return _selectedCategory != 'All Categories' ||
+    return !_selectedCategories.contains('All Categories') ||
+        _selectedCategories.length > 1 ||
         _startDate != null ||
         _endDate != null ||
         _minAmount > 0 ||
@@ -352,7 +420,7 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
   void _clearFilters() {
     setState(() {
       _searchController.clear();
-      _selectedCategory = 'All Categories';
+      _selectedCategories = ['All Categories'];
       _startDate = null;
       _endDate = null;
       _minAmount = 0;

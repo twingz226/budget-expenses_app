@@ -74,6 +74,33 @@ class HiveService {
     return expenses.fold(0.0, (sum, expense) => sum + expense.amount);
   }
 
+  static List<Expense> getExpensesForLastThirtyDays() {
+    final now = DateTime.now();
+    final thirtyDaysAgo = now.subtract(const Duration(days: 30));
+
+    final expenses = getAllExpenses();
+    return expenses.where((expense) {
+      return expense.date.isAfter(thirtyDaysAgo) &&
+          expense.date.isBefore(now.add(const Duration(days: 1)));
+    }).toList();
+  }
+
+  static Map<DateTime, double> getDailyTotalsForLastThirtyDays() {
+    final expenses = getExpensesForLastThirtyDays();
+    final Map<DateTime, double> dailyTotals = {};
+
+    for (final expense in expenses) {
+      final date = DateTime(
+        expense.date.year,
+        expense.date.month,
+        expense.date.day,
+      );
+      dailyTotals[date] = (dailyTotals[date] ?? 0) + expense.amount;
+    }
+
+    return dailyTotals;
+  }
+
   static Map<DateTime, double> getDailyTotalsForLastSevenDays() {
     final expenses = getExpensesForLastSevenDays();
     final Map<DateTime, double> dailyTotals = {};

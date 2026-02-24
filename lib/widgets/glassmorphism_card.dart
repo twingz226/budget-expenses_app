@@ -24,7 +24,7 @@ class GlassmorphismCard extends StatelessWidget {
 
     // Theme-aware colors for glassmorphism effect
     final backgroundColor = isDarkMode
-        ? Colors.grey.shade900.withValues(alpha: 0.3)
+        ? Colors.grey.shade900.withValues(alpha: 0.4)
         : Colors.white.withValues(alpha: 0.2);
 
     final borderColor = isDarkMode
@@ -42,7 +42,10 @@ class GlassmorphismCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          filter: ImageFilter.blur(
+            sigmaX: isDarkMode ? 8 : 10,
+            sigmaY: isDarkMode ? 8 : 10,
+          ),
           child: Container(
             padding: padding ?? const EdgeInsets.all(16),
             decoration: BoxDecoration(
