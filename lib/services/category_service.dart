@@ -6,6 +6,29 @@ import '../utils/categories.dart';
 class CategoryService {
   static Box<CustomCategory>? _categoryBox;
 
+  static const Map<String, IconData> _iconMap = {
+    'home': Icons.home,
+    'work': Icons.work,
+    'school': Icons.school,
+    'movie': Icons.movie,
+    'flight': Icons.flight,
+    'fitness_center': Icons.fitness_center,
+    'shopping_cart': Icons.shopping_cart,
+    'card_giftcard': Icons.card_giftcard,
+    'pets': Icons.pets,
+    'book': Icons.book,
+    'music_note': Icons.music_note,
+    'sports_esports': Icons.sports_esports,
+    'coffee': Icons.coffee,
+    'dinner_dining': Icons.dinner_dining,
+    'shopping_basket': Icons.shopping_basket,
+    'local_pharmacy': Icons.local_pharmacy,
+    'local_gas_station': Icons.local_gas_station,
+    'electrical_services': Icons.electrical_services,
+    'water_drop': Icons.water_drop,
+    'wifi': Icons.wifi,
+  };
+
   static Box<CustomCategory> get categoryBox {
     _categoryBox ??= Hive.box<CustomCategory>(
       AppConstants.customCategoriesBoxName,
@@ -73,13 +96,7 @@ class CategoryService {
     // Check if it's a custom category
     final customCategory = getCustomCategoryByName(categoryName);
     if (customCategory != null) {
-      // Convert icon string to IconData
-      try {
-        final iconCodePoint = int.parse(customCategory.icon);
-        return IconData(iconCodePoint, fontFamily: 'MaterialIcons');
-      } catch (e) {
-        return Icons.category;
-      }
+      return _iconMap[customCategory.icon] ?? Icons.category;
     }
 
     // Return default category icons
@@ -107,26 +124,26 @@ class CategoryService {
 
   static List<Map<String, dynamic>> getAvailableIcons() {
     return [
-      {'name': 'Home', 'icon': Icons.home.codePoint},
-      {'name': 'Work', 'icon': Icons.work.codePoint},
-      {'name': 'School', 'icon': Icons.school.codePoint},
-      {'name': 'Entertainment', 'icon': Icons.movie.codePoint},
-      {'name': 'Travel', 'icon': Icons.flight.codePoint},
-      {'name': 'Fitness', 'icon': Icons.fitness_center.codePoint},
-      {'name': 'Shopping', 'icon': Icons.shopping_cart.codePoint},
-      {'name': 'Gift', 'icon': Icons.card_giftcard.codePoint},
-      {'name': 'Pet', 'icon': Icons.pets.codePoint},
-      {'name': 'Book', 'icon': Icons.book.codePoint},
-      {'name': 'Music', 'icon': Icons.music_note.codePoint},
-      {'name': 'Game', 'icon': Icons.sports_esports.codePoint},
-      {'name': 'Coffee', 'icon': Icons.coffee.codePoint},
-      {'name': 'Dining', 'icon': Icons.dinner_dining.codePoint},
-      {'name': 'Grocery', 'icon': Icons.shopping_basket.codePoint},
-      {'name': 'Pharmacy', 'icon': Icons.local_pharmacy.codePoint},
-      {'name': 'Gas', 'icon': Icons.local_gas_station.codePoint},
-      {'name': 'Electricity', 'icon': Icons.electrical_services.codePoint},
-      {'name': 'Water', 'icon': Icons.water_drop.codePoint},
-      {'name': 'Internet', 'icon': Icons.wifi.codePoint},
+      {'name': 'Home', 'icon': 'home'},
+      {'name': 'Work', 'icon': 'work'},
+      {'name': 'School', 'icon': 'school'},
+      {'name': 'Entertainment', 'icon': 'movie'},
+      {'name': 'Travel', 'icon': 'flight'},
+      {'name': 'Fitness', 'icon': 'fitness_center'},
+      {'name': 'Shopping', 'icon': 'shopping_cart'},
+      {'name': 'Gift', 'icon': 'card_giftcard'},
+      {'name': 'Pet', 'icon': 'pets'},
+      {'name': 'Book', 'icon': 'book'},
+      {'name': 'Music', 'icon': 'music_note'},
+      {'name': 'Game', 'icon': 'sports_esports'},
+      {'name': 'Coffee', 'icon': 'coffee'},
+      {'name': 'Dining', 'icon': 'dinner_dining'},
+      {'name': 'Grocery', 'icon': 'shopping_basket'},
+      {'name': 'Pharmacy', 'icon': 'local_pharmacy'},
+      {'name': 'Gas', 'icon': 'local_gas_station'},
+      {'name': 'Electricity', 'icon': 'electrical_services'},
+      {'name': 'Water', 'icon': 'water_drop'},
+      {'name': 'Internet', 'icon': 'wifi'},
     ];
   }
 

@@ -7,16 +7,16 @@ part 'custom_category.g.dart';
 class CustomCategory extends HiveObject {
   @HiveField(0)
   final String id;
-  
+
   @HiveField(1)
   final String name;
-  
+
   @HiveField(2)
   final String color; // Hex color string
-  
+
   @HiveField(3)
-  final String icon; // Icon name or code point
-  
+  final String icon; // Icon name
+
   @HiveField(4)
   final DateTime createdAt;
 
