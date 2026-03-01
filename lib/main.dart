@@ -7,6 +7,7 @@ import 'models/custom_category.dart';
 import 'utils/categories.dart';
 import 'themes/app_theme.dart';
 import 'screens/home_screen.dart';
+import 'services/budget_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +31,9 @@ void main() async {
     await Hive.openBox<Expense>(AppConstants.expensesBoxName);
     await Hive.openBox<Budget>(AppConstants.budgetsBoxName);
     await Hive.openBox<CustomCategory>(AppConstants.customCategoriesBoxName);
+
+    // Ensure budgets are rolled over for the current month
+    await BudgetService.ensureBudgetsRolledOver();
 
     runApp(const MoneyWiseApp());
   } catch (e, stackTrace) {

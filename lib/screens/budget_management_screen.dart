@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/budget.dart';
 import '../services/budget_service.dart';
-import '../services/category_service.dart';
 import '../services/hive_service.dart';
 import '../utils/currency_formatter.dart';
 import 'add_budget_screen.dart';
@@ -152,11 +151,9 @@ class BudgetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentMonthExpenses = HiveService.getExpensesForMonth(budget.month);
-    final categorySpent = currentMonthExpenses
-        .where((expense) => expense.category == budget.category)
+    final actualSpent = currentMonthExpenses
         .fold(0.0, (sum, expense) => sum + expense.amount);
 
-    final actualSpent = categorySpent;
     final progress = budget.amount > 0 ? actualSpent / budget.amount : 0.0;
     final remaining = budget.amount - actualSpent;
     final isOverBudget = remaining < 0;
@@ -174,11 +171,9 @@ class BudgetCard extends StatelessWidget {
                 Row(
                   children: [
                     CircleAvatar(
-                      backgroundColor: CategoryService.getCategoryColor(
-                        budget.category,
-                      ),
-                      child: Icon(
-                        CategoryService.getCategoryIcon(budget.category),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      child: const Icon(
+                        Icons.account_balance_wallet,
                         color: Colors.white,
                         size: 20,
                       ),
@@ -188,7 +183,7 @@ class BudgetCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          budget.category,
+                          'Monthly Budget',
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),

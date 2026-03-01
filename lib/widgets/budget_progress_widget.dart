@@ -98,13 +98,6 @@ class _BudgetProgressWidgetState extends State<BudgetProgressWidget> {
                           ] else ...[
                             // Overall budget progress
                             _buildOverallBudgetCard(context, currentMonth),
-                            const SizedBox(height: 16),
-
-                            // Category-wise budget progress
-                            ...budgets.map(
-                              (budget) =>
-                                  _buildCategoryBudgetCard(context, budget),
-                            ),
                           ],
                         ],
                       ),
@@ -188,82 +181,7 @@ class _BudgetProgressWidgetState extends State<BudgetProgressWidget> {
     );
   }
 
-  Widget _buildCategoryBudgetCard(BuildContext context, budget) {
-    // Calculate actual spent for this category
-    final currentMonthExpenses = HiveService.getExpensesForMonth(budget.month);
-    final categorySpent = currentMonthExpenses
-        .where((expense) => expense.category == budget.category)
-        .fold(0.0, (sum, expense) => sum + expense.amount);
 
-    final actualSpent = categorySpent;
-
-    final progress = budget.amount > 0 ? actualSpent / budget.amount : 0.0;
-    final remaining = budget.amount - actualSpent;
-    final isOverBudget = BudgetService.isOverBudget(
-      budget.category,
-      budget.month,
-    );
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                budget.category,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
-              ),
-              Text(
-                '${(progress * 100).toStringAsFixed(1)}%',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: isOverBudget
-                      ? Colors.red
-                      : progress > 0.8
-                      ? Colors.orange
-                      : Colors.green,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          LinearProgressIndicator(
-            value: progress.clamp(0.0, 1.0),
-            backgroundColor: Theme.of(context).colorScheme.surface,
-            valueColor: AlwaysStoppedAnimation<Color>(
-              isOverBudget
-                  ? Colors.red
-                  : progress > 0.8
-                  ? Colors.orange
-                  : Colors.green,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${CurrencyFormatter.format(actualSpent)} / ${CurrencyFormatter.format(budget.amount)}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              Text(
-                '${CurrencyFormatter.format(remaining)} left',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: remaining >= 0 ? Colors.green : Colors.red,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _refreshData() async {
     // Simulate refresh delay for user feedback

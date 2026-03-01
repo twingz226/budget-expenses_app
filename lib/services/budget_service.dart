@@ -23,10 +23,9 @@ class BudgetService {
     await budgetBox.deleteAt(index);
   }
 
-  static Budget? getBudgetForCategory(String category, DateTime month) {
+  static Budget? getBudgetForMonth(DateTime month) {
     final budgets = budgetBox.values.where((budget) {
-      return budget.category == category &&
-          budget.month.year == month.year &&
+      return budget.month.year == month.year &&
           budget.month.month == month.month;
     }).toList();
 
@@ -41,24 +40,20 @@ class BudgetService {
   }
 
   static Map<String, double> getBudgetProgress(DateTime month) {
-    final budgets = getBudgetsForMonth(month);
-    final expenses = HiveService.getExpensesForMonth(month);
+    final budget = getBudgetForMonth(month);
+    final totalSpent = getTotalSpentForMonth(month);
     final Map<String, double> progress = {};
 
-    for (final budget in budgets) {
-      final spent = expenses
-          .where((expense) => expense.category == budget.category)
-          .fold(0.0, (sum, expense) => sum + expense.amount);
-
-      progress[budget.category] = spent / budget.amount;
+    if (budget != null && budget.amount > 0) {
+      progress['General'] = totalSpent / budget.amount;
     }
 
     return progress;
   }
 
   static double getTotalBudgetForMonth(DateTime month) {
-    final budgets = getBudgetsForMonth(month);
-    return budgets.fold(0.0, (sum, budget) => sum + budget.amount);
+    final budget = getBudgetForMonth(month);
+    return budget?.amount ?? 0.0;
   }
 
   static double getTotalSpentForMonth(DateTime month) {
@@ -75,22 +70,62 @@ class BudgetService {
   }
 
   static List<String> getCategoriesWithoutBudgets(DateTime month) {
-    final budgets = getBudgetsForMonth(month);
-    final budgetedCategories = budgets.map((b) => b.category).toSet();
-
-    return AppConstants.expenseCategories
-        .where((category) => !budgetedCategories.contains(category))
-        .toList();
+    return []; // No longer applicable with a general budget
   }
 
-  static bool isOverBudget(String category, DateTime month) {
-    final budget = getBudgetForCategory(category, month);
+  static bool isOverBudget(DateTime month) {
+    final budget = getBudgetForMonth(month);
     if (budget == null) return false;
 
-    final expenses = HiveService.getExpensesForMonth(month)
-        .where((expense) => expense.category == category)
-        .fold(0.0, (sum, expense) => sum + expense.amount);
+    final totalExpenses = getTotalSpentForMonth(month);
 
-    return expenses > budget.amount;
+    return totalExpenses > budget.amount;
+  }
+
+  static Future<void> ensureBudgetsRolledOver() async {
+    final now = DateTime.now();
+    final currentMonth = DateTime(now.year, now.month);
+    
+    // Check if there are already budgets for the current month
+    final currentBudgets = getBudgetsForMonth(currentMonth);
+    if (currentBudgets.isNotEmpty) {
+      return; // Already have budgets for this month
+    }
+
+    // No budgets for current month, let's look for the most recent past month
+    final existingMonthsWithBudgets = budgetBox.values
+        .map((b) => DateTime(b.month.year, b.month.month))
+        .toSet()
+        .toList()
+        ..sort((a, b) => b.compareTo(a)); // Sort descending
+
+    final pastMonths = existingMonthsWithBudgets
+        .where((m) => m.isBefore(currentMonth))
+        .toList();
+
+    if (pastMonths.isEmpty) {
+      return; // No past budgets to roll over
+    }
+
+    final mostRecentPastMonth = pastMonths.first;
+    final pastBudgets = getBudgetsForMonth(mostRecentPastMonth);
+
+    for (final budget in pastBudgets) {
+      // Calculate how much was spent in that past month in total
+      final pastExpenses = HiveService.getTotalForMonth(mostRecentPastMonth);
+
+      final remainingAmount = budget.amount - pastExpenses;
+
+      // Only roll over if there is an unspent amount
+      if (remainingAmount > 0) {
+        final newBudget = Budget(
+          category: 'General',
+          amount: remainingAmount,
+          month: currentMonth,
+        );
+        await addBudget(newBudget);
+      }
+    }
   }
 }
+

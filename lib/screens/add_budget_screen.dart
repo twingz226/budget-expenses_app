@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/budget.dart';
 import '../services/budget_service.dart';
-import '../services/category_service.dart';
 
 class AddBudgetScreen extends StatefulWidget {
   final Budget? budget;
@@ -17,7 +16,6 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
 
-  String _selectedCategory = CategoryService.getAllCategories().first;
   DateTime _selectedDate = DateTime.now();
 
   @override
@@ -25,7 +23,6 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     super.initState();
     if (widget.budget != null) {
       _amountController.text = widget.budget!.amount.toString();
-      _selectedCategory = widget.budget!.category;
       _selectedDate = widget.budget!.month;
     }
   }
@@ -56,39 +53,6 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Category Dropdown
-              DropdownButtonFormField<String>(
-                initialValue: _selectedCategory,
-                decoration: const InputDecoration(labelText: 'Category'),
-                items: CategoryService.getAllCategories().map((category) {
-                  return DropdownMenuItem(
-                    value: category,
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: CategoryService.getCategoryColor(
-                            category,
-                          ),
-                          radius: 12,
-                          child: Icon(
-                            CategoryService.getCategoryIcon(category),
-                            color: Colors.white,
-                            size: 14,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(category),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedCategory = value!;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
 
               // Amount Field
               TextFormField(
@@ -159,24 +123,37 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
 
   Future<void> _saveBudget() async {
     if (_formKey.currentState!.validate()) {
-      final budget = Budget(
-        id: widget.budget?.id,
-        category: _selectedCategory,
-        amount: double.parse(_amountController.text),
-        month: _selectedDate,
-      );
+      final inputAmount = double.parse(_amountController.text);
+      final monthToSave = _selectedDate;
 
-      if (widget.budget == null) {
-        // Add new budget
-        await BudgetService.addBudget(budget);
-      } else {
-        // Update existing budget
+      // Check if a budget already exists for this month
+      final existingBudgets = BudgetService.getBudgetsForMonth(monthToSave);
+      
+      if (existingBudgets.isNotEmpty) {
+        // If it exists, update it by adding the input amount to the existing amount
+        final existingBudget = existingBudgets.first;
         final index = BudgetService.budgetBox.values.toList().indexWhere(
-          (b) => b.id == widget.budget!.id,
+          (b) => b.id == existingBudget.id,
         );
+
         if (index != -1) {
-          await BudgetService.updateBudget(index, budget);
+          final updatedBudget = Budget(
+            id: existingBudget.id,
+            category: 'General', // Always General now
+            amount: existingBudget.amount + inputAmount,
+            month: existingBudget.month,
+            createdAt: existingBudget.createdAt,
+          );
+          await BudgetService.updateBudget(index, updatedBudget);
         }
+      } else {
+        // Create new budget
+        final newBudget = Budget(
+          category: 'General',
+          amount: inputAmount,
+          month: monthToSave,
+        );
+        await BudgetService.addBudget(newBudget);
       }
 
       if (mounted) {
